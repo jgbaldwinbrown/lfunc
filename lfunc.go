@@ -1,4 +1,4 @@
-package main
+package lfunc
 
 import (
 	"fmt"
@@ -147,39 +147,4 @@ func NewPrec(decplaces int64) *big.Rat {
 		out.Mul(out, tenth)
 	}
 	return out
-}
-
-func main() {
-	prprec := 300
-
-	x := Lint64(5)
-	y := Lint64(7)
-	z := Lint64(9)
-	xy := Add(x, y)
-	yz := Add(y, z)
-	xyyz := Add(xy, yz)
-	min, max := Unwrap(xyyz(big.NewRat(1,1)))
-	fmt.Println(min, max)
-	fmt.Println(5+7+7+9)
-	rmid, rprec := MidPrec(xyyz(big.NewRat(1,1)))
-	fmt.Println(rmid, rprec)
-
-	fmt.Println(Unwrap(Avg(x, y, z)(big.NewRat(1,1))))
-
-	rt2 := Sqrt(Lint64(2))
-	smin, smax := Unwrap(rt2(big.NewRat(1,10000)))
-	fmt.Println(smin.FloatString(prprec))
-	fmt.Println(smax.FloatString(prprec))
-
-	smin, smax = Unwrap(rt2(big.NewRat(1,1000000)))
-	fmt.Println(smin.FloatString(prprec))
-	fmt.Println(smax.FloatString(prprec))
-
-	prec := NewPrec(200)
-	fmt.Println(prec)
-
-	r2p1 := Add(Sqrt(Lint64(2)), Lint64(1))
-	smin, smax = Unwrap(r2p1(prec))
-	fmt.Println(smin.FloatString(prprec))
-	fmt.Println(smax.FloatString(prprec))
 }
