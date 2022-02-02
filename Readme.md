@@ -49,3 +49,55 @@ func main() {
 ```sh
 go get github.com/jgbaldwinbrown/lfunc
 ```
+
+## Creating your own compatible functions
+
+You can easily wrap most mathematical functions so they can be used by this
+library. You simply need to write a function that takes a set of `lfunc.Lfunc`
+values, and returns a new `lfunc.Lfunc` value. `lfunc.Lfunc` is a function / closure
+with the following signature:
+
+```go
+type Lfunc func(precision *big.Rat) Lret
+```
+
+And Lret is a struct with the following definition:
+
+```go
+type Lret struct {
+	Min *big.Rat
+	Max *big.Rat
+}
+```
+
+For example, here is the source for the `lfunc.Add` function, annotated:
+
+```go
+func Add(x, y Lfunc) Lfunc {
+	// We are taking in two Lfunc values, x and y, and returning a function
+	// closure with the lfunc.Lfunc signature
+
+	return func(precision *big.Rat) Lret {
+		// min and max will be the return values of the closure
+		min := new(big.Rat)
+		max := new(big.Rat)
+
+		// Here, we get the concrete minimum and maximum values of our
+		// inputs (x and y), using the specified precision. "Unwrap"
+		// gets the minimum and maximum values from the function's
+		// output.
+		xmin, xmax := Unwrap(x(precision))
+		ymin, ymax := Unwrap(y(precision))
+
+		// Since Add is an exact function, we generate our new minimum
+		// values by adding the minimums of the inputs. If Add were an
+		// approximate function, we would need to use the minimum of
+		// the Add function as our output minimum.
+		min.Add(xmin, ymin)
+		// Same idea here, but for maximums.
+		max.Add(xmax, ymax)
+
+		return Lret{min, max}
+	}
+}
+```
