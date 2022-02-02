@@ -5,60 +5,65 @@ import (
 	"math/big"
 )
 
-type Lfunc func(precision *big.Rat) (min, max *big.Rat)
+type Lfunc func(precision *big.Rat) Lret
+
+type Lret struct {
+	Min *big.Rat
+	Max *big.Rat
+}
 
 func Lint64(i int64) Lfunc {
-	return func(precision *big.Rat) (min, max *big.Rat) {
+	return func(precision *big.Rat) Lret {
 		out := big.NewRat(i, 1)
-		return out, out
+		return Lret{out, out}
 	}
 }
 
 func Add(x, y Lfunc) Lfunc {
-	return func(precision *big.Rat) (min, max *big.Rat) {
-		min = new(big.Rat)
-		max = new(big.Rat)
-		xmin, xmax := x(precision)
-		ymin, ymax := y(precision)
+	return func(precision *big.Rat) Lret {
+		min := new(big.Rat)
+		max := new(big.Rat)
+		xmin, xmax := Unwrap(x(precision))
+		ymin, ymax := Unwrap(y(precision))
 		min.Add(xmin, ymin)
 		max.Add(xmax, ymax)
-		return min, max
-	}
-}
-
-func Mul(x, y Lfunc) Lfunc {
-	return func(precision *big.Rat) (min, max *big.Rat) {
-		min = new(big.Rat)
-		max = new(big.Rat)
-		xmin, xmax := x(precision)
-		ymin, ymax := y(precision)
-		min.Mul(xmin, ymin)
-		max.Mul(xmax, ymax)
-		return min, max
-	}
-}
-
-func Quo(x, y Lfunc) Lfunc {
-	return func(precision *big.Rat) (min, max *big.Rat) {
-		min = new(big.Rat)
-		max = new(big.Rat)
-		xmin, xmax := x(precision)
-		ymin, ymax := y(precision)
-		min.Quo(xmin, ymin)
-		max.Quo(xmax, ymax)
-		return min, max
+		return Lret{min, max}
 	}
 }
 
 func Sub(x, y Lfunc) Lfunc {
-	return func(precision *big.Rat) (min, max *big.Rat) {
-		min = new(big.Rat)
-		max = new(big.Rat)
-		xmin, xmax := x(precision)
-		ymin, ymax := y(precision)
+	return func(precision *big.Rat) Lret {
+		min := new(big.Rat)
+		max := new(big.Rat)
+		xmin, xmax := Unwrap(x(precision))
+		ymin, ymax := Unwrap(y(precision))
 		min.Sub(xmin, ymin)
 		max.Sub(xmax, ymax)
-		return min, max
+		return Lret{min, max}
+	}
+}
+
+func Mul(x, y Lfunc) Lfunc {
+	return func(precision *big.Rat) Lret {
+		min := new(big.Rat)
+		max := new(big.Rat)
+		xmin, xmax := Unwrap(x(precision))
+		ymin, ymax := Unwrap(y(precision))
+		min.Mul(xmin, ymin)
+		max.Mul(xmax, ymax)
+		return Lret{min, max}
+	}
+}
+
+func Quo(x, y Lfunc) Lfunc {
+	return func(precision *big.Rat) Lret {
+		min := new(big.Rat)
+		max := new(big.Rat)
+		xmin, xmax := Unwrap(x(precision))
+		ymin, ymax := Unwrap(y(precision))
+		min.Quo(xmin, ymin)
+		max.Quo(xmax, ymax)
+		return Lret{min, max}
 	}
 }
 
@@ -72,19 +77,19 @@ func avg(a *big.Rat, vals ...*big.Rat) {
 }
 
 func Avg(vals ...Lfunc) Lfunc {
-	return func(precision *big.Rat) (min, max *big.Rat) {
-		min = new(big.Rat)
-		max = new(big.Rat)
+	return func(precision *big.Rat) Lret {
+		min := new(big.Rat)
+		max := new(big.Rat)
 		mins := []*big.Rat{}
 		maxs := []*big.Rat{}
 		for _, val := range vals {
-			vmin, vmax := val(precision)
+			vmin, vmax := Unwrap(val(precision))
 			mins = append(mins, vmin)
 			maxs = append(maxs, vmax)
 		}
 		avg(min, mins...)
 		avg(max, maxs...)
-		return
+		return Lret{min, max}
 	}
 }
 
@@ -111,16 +116,27 @@ func sqrt(min, max, x *big.Rat, precision *big.Rat) {
 }
 
 func Sqrt(x Lfunc) Lfunc {
-	return func(precision *big.Rat) (*big.Rat, *big.Rat) {
+	return func(precision *big.Rat) Lret {
 		minmin := new(big.Rat)
 		minmax := new(big.Rat)
 		maxmin := new(big.Rat)
 		maxmax := new(big.Rat)
-		xmin, xmax := x(precision)
+		xmin, xmax := Unwrap(x(precision))
 		sqrt(minmin, minmax, xmin, precision)
 		sqrt(maxmin, maxmax, xmax, precision)
-		return minmin, maxmax
+		return Lret{minmin, maxmax}
 	}
+}
+
+func Unwrap(l Lret) (*big.Rat, *big.Rat) {
+	return l.Min, l.Max
+}
+
+func MidPrec(l Lret) (mid *big.Rat, prec *big.Rat) {
+	mid = new(big.Rat)
+	avg(mid, l.Min, l.Max)
+	prec = new(big.Rat).Sub(l.Max, l.Min)
+	return
 }
 
 func NewPrec(decplaces int64) *big.Rat {
@@ -142,18 +158,20 @@ func main() {
 	xy := Add(x, y)
 	yz := Add(y, z)
 	xyyz := Add(xy, yz)
-	min, max := xyyz(big.NewRat(1,1))
+	min, max := Unwrap(xyyz(big.NewRat(1,1)))
 	fmt.Println(min, max)
 	fmt.Println(5+7+7+9)
+	rmid, rprec := MidPrec(xyyz(big.NewRat(1,1)))
+	fmt.Println(rmid, rprec)
 
-	fmt.Println(Avg(x, y, z)(big.NewRat(1,1)))
+	fmt.Println(Unwrap(Avg(x, y, z)(big.NewRat(1,1))))
 
 	rt2 := Sqrt(Lint64(2))
-	smin, smax := rt2(big.NewRat(1,10000))
+	smin, smax := Unwrap(rt2(big.NewRat(1,10000)))
 	fmt.Println(smin.FloatString(prprec))
 	fmt.Println(smax.FloatString(prprec))
 
-	smin, smax = rt2(big.NewRat(1,1000000))
+	smin, smax = Unwrap(rt2(big.NewRat(1,1000000)))
 	fmt.Println(smin.FloatString(prprec))
 	fmt.Println(smax.FloatString(prprec))
 
@@ -161,7 +179,7 @@ func main() {
 	fmt.Println(prec)
 
 	r2p1 := Add(Sqrt(Lint64(2)), Lint64(1))
-	smin, smax = r2p1(prec)
+	smin, smax = Unwrap(r2p1(prec))
 	fmt.Println(smin.FloatString(prprec))
 	fmt.Println(smax.FloatString(prprec))
 }
