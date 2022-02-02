@@ -1,7 +1,6 @@
 package lfunc
 
 import (
-	"fmt"
 	"math/big"
 )
 
